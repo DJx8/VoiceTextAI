@@ -1,0 +1,17 @@
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Secrets
+.env
+
+# Benchmark datasets and audio
+datasets/
+LibriSpeech/
+sample_audio/
+
+# IDE and logs
+.vscode/
+*.log
