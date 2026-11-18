@@ -1,8 +1,9 @@
-
 fastapi
 uvicorn
 python-multipart
 gradio
 groq
 python-dotenv
+openai
+imageio-ffmpeg
 jiwer

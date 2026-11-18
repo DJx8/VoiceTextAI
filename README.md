@@ -1,62 +1,94 @@
-# 🎙️ VoiceText AI
+#  VoiceText AI
+
 ### AI-Powered Speech-to-Text Transcription
 
-VoiceText AI is a web-based speech recognition application that converts spoken audio into written text using **OpenAI Whisper Large V3**, accessed through the Groq API.
+VoiceText AI is a web-based speech recognition application that converts spoken audio into written text. It provides two transcription engines through a single interface: **Groq Whisper Large V3** for English transcription and **AI4Bharat Bodhan Indic-Transcribe** for multilingual transcription.
 
-It provides an easy-to-use interface for uploading audio files or recording voice directly through a microphone. It also exposes a REST API that other applications can use for speech transcription.
+Users can upload audio files or record their voice through a microphone. The application also provides a REST API for integration with external applications.
 
 ## ✨ Features
 
-- **Audio Upload:** Upload audio files in formats such as MP3, WAV, M4A, MP4, WebM and more.
-- **Live Microphone Recording:** Record audio directly from your browser.
-- **AI Transcription:** Convert speech into text using Whisper Large V3.
-- **Language Detection:** Automatically identify the spoken language.
-- **Transcription Metadata:** View detected language, audio duration, model and processing time.
-- **REST API:** Use the transcription service from external applications.
-- **Web Interface:** Simple and interactive interface built with Gradio.
-- **Free-Tier Deployment:** Designed to run using free hosting and API tiers, subject to their usage limits.
+- **Two transcription engines:** Switch between Whisper and Indic-Transcribe.
+- **English transcription:** Groq Whisper Large V3, with English selected as the fixed language.
+- **Multilingual transcription:** Indic-Transcribe supports English, Hindi, Kannada, Malayalam, Tamil and Telugu.
+- **Automatic language detection:** Available with Indic-Transcribe.
+- **Manual language selection:** Choose the spoken language when using Indic-Transcribe.
+- **Audio upload:** Supports MP3, WAV, M4A, MP4, WebM, OGG, FLAC and AAC inputs.
+- **Microphone recording:** Record speech directly from the browser.
+- **Automatic audio conversion:** Audio is converted to mono, 16 kHz WAV before transcription.
+- **REST API:** Integrate transcription into other applications.
+- **Transcription metadata:** View the selected model, requested language, audio duration and processing time.
 
-## Architecture
+##  Transcription Models
+
+| Feature | Whisper (Groq) | Indic-Transcribe (Bodhan) |
+|---|---|---|
+| English | Yes | Yes |
+| Hindi | No | Yes |
+| Kannada | No | Yes |
+| Malayalam | No | Yes |
+| Tamil | No | Yes |
+| Telugu | No | Yes |
+| Automatic language detection | Not used | Supported |
+| Manual language selection | Fixed to English | Supported |
+
+**Whisper:** Uses `whisper-large-v3` through the Groq API. English is explicitly selected for transcription.
+
+**Indic-Transcribe:** Uses `indic-transcribe` through the Bodhan API. It supports automatic language detection and manual selection for the six supported languages.
+
+##  Architecture
 
 ```text
-             User
-               |
-               v
-       VoiceText AI Website
-             (Gradio)
-               |
-               v
-        FastAPI Backend
-               |
-               v
-           Groq API
-               |
-               v
-       Whisper Large V3
-               |
-               v
-       Transcribed Text
-               |
-               v
-          User Output
+                    User
+                      |
+                      v
+              VoiceText AI Website
+                    Gradio
+                      |
+                      v
+                FastAPI Backend
+                      |
+                      v
+               Audio Conversion
+               Mono, 16 kHz WAV
+                      |
+                      v
+              Transcription Router
+                      |
+              +-------+-------+
+              |               |
+              v               v
+        Groq Whisper      Bodhan API
+        Large V3          Indic-Transcribe
+              |               |
+              +-------+-------+
+                      |
+                      v
+              Transcribed Text
+                      |
+                      v
+                    User
 ```
 
 The Gradio frontend is mounted inside FastAPI, allowing the website and REST API to run through a single application.
 
-## Tech Stack
+##  Tech Stack
 
 | Technology | Purpose |
 |---|---|
 | Python | Core programming language |
 | FastAPI | Backend and REST API |
 | Gradio | Web interface |
-| Groq API | Model inference |
-| Whisper Large V3 | Speech recognition |
+| Groq API | Whisper inference |
+| Bodhan API | Indic-Transcribe inference |
+| OpenAI Python SDK | Bodhan API communication |
+| FFmpeg | Audio conversion |
+| imageio-ffmpeg | FFmpeg binary management |
 | Uvicorn | ASGI server |
 | Git & GitHub | Version control |
 | Render | Application deployment |
 
-## 📁 Project Structure
+##  Project Structure
 
 ```text
 VoiceTextAI/
@@ -71,19 +103,22 @@ VoiceTextAI/
 │   └── app.py
 │
 ├── tests/
+│   ├── test_bodhan_transcribe.py
+│   └── test_bodhan_six_languages.py
 │
-├── .env
+├── sample_audio/       # Local test files; not committed
+├── .env                # API keys; not committed
 ├── .gitignore
 ├── requirements.txt
 └── README.md
 ```
 
-## Installation and Setup
+##  Installation and Setup
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/VoiceTextAI.git
+git clone https://github.com/DJx8/VoiceTextAI.git
 cd VoiceTextAI
 ```
 
@@ -95,12 +130,14 @@ python -m venv .venv
 
 Activate it:
 
-**Windows:**
+**Windows PowerShell:**
+
 ```powershell
 .venv\Scripts\Activate.ps1
 ```
 
 **Linux / macOS:**
+
 ```bash
 source .venv/bin/activate
 ```
@@ -111,19 +148,21 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Configure API Key
+### 4. Configure API keys
 
 Create a `.env` file in the project root:
 
 ```env
 GROQ_API_KEY=your_groq_api_key
+BODHAN_API_KEY=your_bodhan_api_key
 ```
 
-Get your API key from:
+Get your API keys:
 
-https://console.groq.com/keys
+- Groq: https://console.groq.com/keys
+- Bodhan: https://console.bodhan.ai/
 
-**Important:** Never upload your `.env` file or expose your API key publicly.
+**Important:** Never commit your `.env` file or expose your API keys publicly.
 
 ### 5. Run the application
 
@@ -139,9 +178,9 @@ The application will be available at:
 | API Documentation | http://127.0.0.1:8000/docs |
 | Health Check | http://127.0.0.1:8000/health |
 
-## REST API
+## 🔌 REST API
 
-VoiceText AI exposes a transcription endpoint that can be integrated into external applications.
+VoiceText AI exposes a transcription endpoint for external applications.
 
 **Endpoint:**
 
@@ -149,11 +188,29 @@ VoiceText AI exposes a transcription endpoint that can be integrated into extern
 POST /transcribe
 ```
 
-**Request:**
+**Request format:** `multipart/form-data`
 
-Send an audio file using `multipart/form-data` with the field name `file`.
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `file` | File | Yes | Audio file |
+| `model` | String | No | `whisper` or `indic`; defaults to `indic` |
+| `language` | String | No | Language code; defaults to `auto` |
 
-Example using Python:
+Supported language codes for Indic-Transcribe:
+
+| Language | Code |
+|---|---|
+| Automatic Detection | `auto` |
+| English | `en` |
+| Hindi | `hi` |
+| Kannada | `kn` |
+| Malayalam | `ml` |
+| Tamil | `ta` |
+| Telugu | `te` |
+
+Whisper always uses English (`en`), regardless of the language field.
+
+### Python API example
 
 ```python
 import requests
@@ -163,74 +220,95 @@ url = "http://127.0.0.1:8000/transcribe"
 with open("sample_audio.wav", "rb") as audio:
     response = requests.post(
         url,
-        files={"file": audio}
+        files={"file": audio},
+        data={
+            "model": "indic",
+            "language": "auto"
+        }
     )
 
 print(response.json())
 ```
 
-**Example Response:**
+### Use Whisper
+
+```python
+import requests
+
+url = "http://127.0.0.1:8000/transcribe"
+
+with open("english_audio.wav", "rb") as audio:
+    response = requests.post(
+        url,
+        files={"file": audio},
+        data={"model": "whisper"}
+    )
+
+print(response.json())
+```
+
+### Example response
 
 ```json
 {
     "success": true,
     "filename": "sample_audio.wav",
-    "model": "whisper-large-v3",
-    "language": "English",
+    "selected_model": "indic",
+    "model": "indic-transcribe",
+    "language": "auto",
+    "requested_language": "auto",
     "duration_seconds": 12.5,
-    "processing_time_seconds": 0.85,
-    "transcription": "Hello, welcome to VoiceText AI."
+    "processing_time_seconds": 1.2,
+    "api_request_time_seconds": 0.9,
+    "transcription": "Example transcribed text."
 }
 ```
 
-## Deployment
+The `language` field represents the requested language setting. In automatic mode, the API response does not currently expose a separately detected language label.
 
-The application is designed to be deployed as a single web service using Render.
+## ☁️ Deployment
 
-Deployment configuration:
+The application is designed to run as a single web service on Render.
 
-- **Build Command:** `pip install -r requirements.txt`
-- **Start Command:** `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-- **Environment Variable:** `GROQ_API_KEY`
+**Render configuration:**
 
-The API key must be configured through the hosting platform's environment variables.
+- **Build Command:**
 
-## Model Information
+```bash
+pip install -r requirements.txt
+```
 
-**Model:** Whisper Large V3
+- **Start Command:**
 
-**Inference Provider:** Groq
+```bash
+uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+```
 
-Whisper is a multilingual automatic speech recognition model capable of recognizing speech in multiple languages.
+**Environment variables:**
 
-The initial development and testing focused on English speech. Additional language testing and improvements are planned.
+```text
+GROQ_API_KEY
+BODHAN_API_KEY
+```
 
-## Future Improvements
+Add the actual API keys through the Render dashboard. Do not place them in source code or GitHub.
 
-- [ ] Add language selection.
-- [ ] Improve transcription support for Indian languages.
-- [ ] Add TXT transcription downloads.
-- [ ] Add support for additional audio formats.
-- [ ] Improve error handling and input validation.
-- [ ] Explore transcription history.
-- [ ] Add timestamp-based transcription.
+##  Cost
 
-## Cost
+VoiceText AI is designed around a ₹0 development and deployment budget.
 
-This project is designed with a ₹0 development and deployment budget.
+It uses free-tier hosting and API access where available. However, free-tier limits, API credits, usage charges and service availability depend on the providers. API usage is not guaranteed to be unlimited or permanently free.
 
-It uses free-tier services where available. Actual availability and usage are subject to Groq API limits and hosting provider restrictions.
+##  Future Improvements
 
-## Author
+- [ ] Add transcription download as TXT.
+- [ ] Add transcription history.
+- [ ] Add timestamps and subtitle generation.
+- [ ] Improve long-audio handling through chunking.
+- [ ] Expand Indian language support.
+- [ ] Improve error handling and API validation.
+- [ ] Add performance and accuracy benchmarks.
 
-**Dhananjay A V**
-
-B.Tech – Artificial Intelligence and Data Science
-
-- GitHub: https://github.com/DJx8
-- LinkedIn: https://linkedin.com/in/dhananjay-av
-
----
 
 ⭐ If you find this project interesting, consider giving the repository a star!
 

@@ -3,8 +3,23 @@ import gradio as gr
 
 from backend.transcription import transcribe_audio_bytes
 
+MODELS = [
+    ("Whisper – English only (Groq)", "whisper"),
+    ("Indic-Transcribe – Multilingual (Bodhan)", "indic"),
+]
 
-def transcribe_audio(uploaded_file, recorded_audio):
+LANGUAGES = [
+    ("Automatic Detection", "auto"),
+    ("English", "en"),
+    ("Kannada (ಕನ್ನಡ)", "kn"),
+    ("Malayalam (മലയാളം)", "ml"),
+    ("Hindi (हिन्दी)", "hi"),
+    ("Tamil (தமிழ்)", "ta"),
+    ("Telugu (తెలుగు)", "te"),
+]
+
+
+def transcribe_audio(uploaded_file, recorded_audio, model, language):
 
     audio_path = uploaded_file or recorded_audio
 
@@ -15,29 +30,54 @@ def transcribe_audio(uploaded_file, recorded_audio):
         with open(audio_path, "rb") as audio_file:
             audio_data = audio_file.read()
 
-        data = transcribe_audio_bytes(audio_data, os.path.basename(audio_path))
+        filename = os.path.basename(audio_path)
 
-        details = {key: value for key, value in data.items() if key != "transcription"}
+        result = transcribe_audio_bytes(
+            audio_data=audio_data, filename=filename, language=language, model=model
+        )
 
-        return data["transcription"], details
+        details = {
+            key: value for key, value in result.items() if key != "transcription"
+        }
 
-    except Exception as e:
-        return "", {"success": False, "error": str(e)}
+        return result["transcription"], details
+
+    except Exception as error:
+        return "", {"success": False, "error": str(error)}
 
 
 with gr.Blocks(title="VoiceText AI", theme=gr.themes.Soft()) as demo:
 
     gr.Markdown("""
     # 🎙️ VoiceText AI
-
     ### AI-powered Speech-to-Text Transcription
 
-    Upload an audio file or record your voice.
+    Upload an audio file or record your voice to convert speech into text.
     """)
+
+    model_input = gr.Radio(
+        choices=MODELS, value="indic", label="Choose Transcription Model"
+    )
+
+    gr.Markdown("""
+    **Whisper:** English speech only. English is selected automatically.
+
+    **Indic-Transcribe:** Supports English, Hindi, Kannada, Malayalam,
+    Tamil and Telugu.
+    """)
+
+    language_input = gr.Dropdown(
+        choices=LANGUAGES,
+        value="auto",
+        label="Spoken Language (Indic-Transcribe only)",
+        interactive=True,
+    )
+
+    gr.Markdown("### Provide your audio")
 
     uploaded_file = gr.File(
         label="Upload Audio",
-        file_types=[".mp3", ".wav", ".m4a", ".mp4", ".webm", ".ogg", ".flac"],
+        file_types=[".mp3", ".wav", ".m4a", ".mp4", ".webm", ".ogg", ".flac", ".aac"],
         type="filepath",
     )
 
@@ -55,6 +95,10 @@ with gr.Blocks(title="VoiceText AI", theme=gr.themes.Soft()) as demo:
 
     transcribe_btn.click(
         fn=transcribe_audio,
-        inputs=[uploaded_file, recorded_audio],
+        inputs=[uploaded_file, recorded_audio, model_input, language_input],
         outputs=[transcription_output, details_output],
     )
+
+
+if __name__ == "__main__":
+    demo.launch()

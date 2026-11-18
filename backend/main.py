@@ -1,31 +1,55 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from backend.transcription import transcribe_audio_bytes
+from pathlib import Path
+
 import gradio as gr
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+
+from backend.transcription import transcribe_audio_bytes
+from frontend.app import demo
 
 app = FastAPI(
     title="VoiceText AI",
-    description="AI-powered Speech-to-Text Transcription API",
-    version="1.0.0",
+    description="Multilingual Speech-to-Text Transcription API",
+    version="2.0.0",
 )
+
+SUPPORTED_LANGUAGES = {"auto", "en", "kn", "ml", "hi", "ta", "te"}
+
+SUPPORTED_MODELS = {"whisper", "indic"}
+
+SUPPORTED_EXTENSIONS = {
+    ".mp3",
+    ".wav",
+    ".m4a",
+    ".mp4",
+    ".webm",
+    ".ogg",
+    ".flac",
+    ".aac",
+}
 
 
 @app.post("/transcribe")
-async def transcribe(file: UploadFile = File(...)):
+async def transcribe(
+    file: UploadFile = File(...),
+    model: str = Form("indic"),
+    language: str = Form("auto"),
+):
+    filename = file.filename or "audio.wav"
+    extension = Path(filename).suffix.lower()
 
-    allowed_types = {
-        "audio/mpeg",
-        "audio/wav",
-        "audio/x-wav",
-        "audio/mp4",
-        "audio/x-m4a",
-        "audio/webm",
-        "video/mp4",
-        "audio/ogg",
-        "audio/flac",
-    }
-
-    if file.content_type not in allowed_types:
+    if extension not in SUPPORTED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported audio format.")
+
+    if model not in SUPPORTED_MODELS:
+        raise HTTPException(
+            status_code=400, detail="Invalid model. Choose whisper or indic."
+        )
+
+    if language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=400, detail="Unsupported language selection.")
+
+    if model == "whisper":
+        language = "en"
 
     audio_data = await file.read()
 
@@ -33,18 +57,20 @@ async def transcribe(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
     try:
-        return transcribe_audio_bytes(audio_data, file.filename or "audio.wav")
+        return transcribe_audio_bytes(
+            audio_data=audio_data, filename=filename, language=language, model=model
+        )
 
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+    except Exception as error:
+        raise HTTPException(status_code=502, detail=str(error))
 
 
 @app.get("/health")
 def health():
     return {"status": "running", "application": "VoiceText AI"}
 
-
-# Mount Gradio website inside FastAPI
-from frontend.app import demo
 
 app = gr.mount_gradio_app(app, demo, path="/")
