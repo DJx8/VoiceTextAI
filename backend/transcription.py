@@ -3,35 +3,85 @@ import time
 import wave
 import tempfile
 import subprocess
+import logging
+
 from pathlib import Path
+from functools import lru_cache
 
 import imageio_ffmpeg
 from dotenv import load_dotenv
 from groq import Groq
-from openai import OpenAI
+from gradio_client import Client, handle_file
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 WHISPER_MODEL = "whisper-large-v3"
-INDIC_MODEL = "indic-transcribe"
+
+# Your private Hugging Face Space
+INDIC_SPACE_ID = "Deejay888/VoiceText-AI"
+INDIC_MODEL = "indic-transcribe-core"
+
+# Existing VoiceText AI language codes -> Space dropdown labels
+HF_LANGUAGES = {
+    "auto": "Automatic detection",
+    "en": "English",
+    "hi": "Hindi",
+    "kn": "Kannada",
+    "ml": "Malayalam",
+    "ta": "Tamil",
+    "te": "Telugu",
+}
+
+
+# ==========================================
+# API CLIENTS
+# ==========================================
 
 
 def get_whisper_client():
     api_key = os.getenv("GROQ_API_KEY")
 
     if not api_key:
-        raise RuntimeError("GROQ_API_KEY is missing from .env")
+        raise RuntimeError("GROQ_API_KEY is missing.")
 
-    return Groq(api_key=api_key)
+    return Groq(
+        api_key=api_key,
+        timeout=60.0,
+        max_retries=1,
+    )
+
+
+@lru_cache(maxsize=1)
+def _create_indic_client(token):
+    return Client(
+        INDIC_SPACE_ID,
+        token=token,
+        verbose=False,
+        max_workers=2,
+        httpx_kwargs={"timeout": 300.0},
+    )
 
 
 def get_indic_client():
-    api_key = os.getenv("BODHAN_API_KEY")
+    token = os.getenv("HF_TOKEN")
 
-    if not api_key:
-        raise RuntimeError("BODHAN_API_KEY is missing from .env")
+    if not token:
+        raise RuntimeError("HF_TOKEN is missing from environment.")
 
-    return OpenAI(base_url="https://api.bodhan.ai/v1", api_key=api_key)
+    try:
+        return _create_indic_client(token)
+    except Exception as error:
+        logger.exception("Could not connect to Hugging Face Space.")
+        raise RuntimeError(
+            "Could not connect to the Indic transcription service."
+        ) from error
+
+
+# ==========================================
+# AUDIO CONVERSION
+# ==========================================
 
 
 def convert_audio(audio_data, filename):
@@ -61,7 +111,15 @@ def convert_audio(audio_data, filename):
         ]
 
         try:
-            subprocess.run(command, check=True, capture_output=True, text=True)
+            subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        except subprocess.TimeoutExpired as error:
+            raise TimeoutError("Audio conversion timed out.") from error
         except subprocess.CalledProcessError as error:
             raise ValueError(
                 "Could not process this audio file. " "Please try another audio format."
@@ -75,7 +133,17 @@ def convert_audio(audio_data, filename):
     return wav_data, duration
 
 
-def transcribe_audio_bytes(audio_data, filename, language="auto", model="indic"):
+# ==========================================
+# MAIN TRANSCRIPTION FUNCTION
+# ==========================================
+
+
+def transcribe_audio_bytes(
+    audio_data,
+    filename,
+    language="auto",
+    model="indic",
+):
     if not audio_data:
         raise ValueError("Audio file is empty.")
 
@@ -90,6 +158,7 @@ def transcribe_audio_bytes(audio_data, filename, language="auto", model="indic")
     # =================================
     # MODEL 1: GROQ WHISPER
     # =================================
+
     if model == "whisper":
 
         client = get_whisper_client()
@@ -120,26 +189,38 @@ def transcribe_audio_bytes(audio_data, filename, language="auto", model="indic")
         }
 
     # =================================
-    # MODEL 2: BODHAN INDIC-TRANSCRIBE
+    # MODEL 2: HUGGING FACE INDIC
     # =================================
+
+    if language not in HF_LANGUAGES:
+        raise ValueError("Unsupported language selection.")
+
+    hf_language = HF_LANGUAGES[language]
+
     client = get_indic_client()
 
     api_start = time.perf_counter()
 
-    # Use a temporary directory to avoid Windows file-locking issues.
-    with tempfile.TemporaryDirectory() as temp_dir:
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_audio_path = Path(temp_dir) / "audio.wav"
+            temp_audio_path.write_bytes(wav_data)
 
-        temp_audio_path = Path(temp_dir) / "audio.wav"
-        temp_audio_path.write_bytes(wav_data)
+            # Call the private Space API.
+            result = client.predict(
+                handle_file(str(temp_audio_path)),
+                hf_language,
+                api_name="/transcribe",
+            )
 
-        with open(temp_audio_path, "rb") as audio_file:
+        if not isinstance(result, str) or not result.strip():
+            raise RuntimeError("The transcription service returned no text.")
 
-            request_data = {"model": INDIC_MODEL, "file": audio_file}
+        transcription = result.strip()
 
-            if language and language != "auto":
-                request_data["language"] = language
-
-            result = client.audio.transcriptions.create(**request_data)
+    except Exception as error:
+        logger.exception("Hugging Face transcription request failed.")
+        raise RuntimeError("Indic transcription failed. Please try again.") from error
 
     api_time = time.perf_counter() - api_start
 
@@ -153,5 +234,5 @@ def transcribe_audio_bytes(audio_data, filename, language="auto", model="indic")
         "duration_seconds": round(duration, 2),
         "processing_time_seconds": round(time.perf_counter() - start_time, 3),
         "api_request_time_seconds": round(api_time, 3),
-        "transcription": result.text.strip(),
+        "transcription": transcription,
     }
