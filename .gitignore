@@ -1,17 +1,21 @@
-
 # Python
 .venv/
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Secrets
 .env
 
-# Benchmark datasets and audio
+# Audio and datasets
 datasets/
 LibriSpeech/
 sample_audio/
 
-# IDE and logs
+# IDE
 .vscode/
+
+# Logs and generated files
 *.log

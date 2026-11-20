@@ -24,14 +24,34 @@ INDIC_SPACE_ID = "Deejay888/VoiceText-AI"
 INDIC_MODEL = "indic-transcribe-core"
 
 # Existing VoiceText AI language codes -> Space dropdown labels
+
 HF_LANGUAGES = {
     "auto": "Automatic detection",
     "en": "English",
+    "as": "Assamese",
+    "bn": "Bengali",
+    "brx": "Bodo",
+    "doi": "Dogri",
+    "gu": "Gujarati",
     "hi": "Hindi",
     "kn": "Kannada",
+    "ks": "Kashmiri",
+    "kok": "Konkani",
+    "mai": "Maithili",
     "ml": "Malayalam",
+    "mni": "Manipuri",
+    "mr": "Marathi",
+    "ne": "Nepali",
+    "or": "Odia",
+    "pa": "Punjabi",
+    "sa": "Sanskrit",
+    "sat": "Santali",
+    "sd": "Sindhi",
     "ta": "Tamil",
     "te": "Telugu",
+    "ur": "Urdu",
+    "bho": "Bhojpuri",
+    "bhb": "Bhili",
 }
 
 
@@ -206,21 +226,38 @@ def transcribe_audio_bytes(
             temp_audio_path = Path(temp_dir) / "audio.wav"
             temp_audio_path.write_bytes(wav_data)
 
-            # Call the private Space API.
+            # Call the combined transcription + translation API.
             result = client.predict(
                 handle_file(str(temp_audio_path)),
                 hf_language,
-                api_name="/transcribe",
+                api_name="/transcribe_and_translate",
             )
 
-        if not isinstance(result, str) or not result.strip():
+        if not isinstance(result, (list, tuple)) or len(result) != 3:
+            raise RuntimeError("Unexpected response from the transcription service.")
+
+        transcription, translation, detected_language = result
+
+        if not isinstance(transcription, str) or not transcription.strip():
             raise RuntimeError("The transcription service returned no text.")
 
-        transcription = result.strip()
+        transcription = transcription.strip()
+
+        translation = (
+            translation.strip()
+            if isinstance(translation, str) and translation.strip()
+            else "English translation is unavailable."
+        )
+
+        detected_language = (
+            str(detected_language).strip() if detected_language else language
+        )
 
     except Exception as error:
         logger.exception("Hugging Face transcription request failed.")
-        raise RuntimeError("Indic transcription failed. Please try again.") from error
+        raise RuntimeError(
+            "Indic transcription and translation failed. Please try again."
+        ) from error
 
     api_time = time.perf_counter() - api_start
 
@@ -231,8 +268,10 @@ def transcribe_audio_bytes(
         "model": INDIC_MODEL,
         "language": language,
         "requested_language": language,
+        "detected_language": detected_language,
         "duration_seconds": round(duration, 2),
         "processing_time_seconds": round(time.perf_counter() - start_time, 3),
         "api_request_time_seconds": round(api_time, 3),
         "transcription": transcription,
+        "translation": translation,
     }
