@@ -88,7 +88,7 @@ def transcribe_audio(uploaded_file, recorded_audio, model, language):
 with gr.Blocks(title="VoiceText AI") as demo:
 
     gr.Markdown("""
-    # ðŸŽ™ï¸ VoiceText AI
+    # VoiceText AI
 
     ### AI-powered Multilingual Speech-to-Text and Translation
 
@@ -121,7 +121,7 @@ with gr.Blocks(title="VoiceText AI") as demo:
         interactive=True,
     )
 
-    gr.Markdown("### ðŸŽ§ Provide Your Audio")
+    gr.Markdown("### Provide Your Audio")
 
     uploaded_file = gr.File(
         label="Upload Audio",
@@ -145,11 +145,11 @@ with gr.Blocks(title="VoiceText AI") as demo:
     )
 
     transcribe_btn = gr.Button(
-        "ðŸš€ Transcribe Audio",
+        "Transcribe Audio",
         variant="primary",
     )
 
-    gr.Markdown("### ðŸ“ Original Transcription")
+    gr.Markdown("### Original Transcription")
 
     transcription_output = gr.Textbox(
         label="Transcription in Original Language",
@@ -157,7 +157,7 @@ with gr.Blocks(title="VoiceText AI") as demo:
         interactive=False,
     )
 
-    gr.Markdown("### ðŸŒ English Translation")
+    gr.Markdown("### English Translation")
 
     translation_output = gr.Textbox(
         label="English Translation",
