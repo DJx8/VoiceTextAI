@@ -1,37 +1,83 @@
 # VoiceText AI
 
-### Multilingual Speech-to-Text and English Translation
+### Multilingual Speech-to-Text, English Translation and Speech Generation
 
-VoiceText AI is an AI-powered speech processing application that converts audio into text in its original language and provides a separate English translation where supported.
+VoiceText AI is an AI-powered audio processing application. It accepts uploaded audio or microphone recordings and provides transcription in the spoken language, an English translation where supported, and optional regional-language speech generation.
 
-It offers two transcription engines:
+The Gradio interface offers **three processing modes**:
 
-- **Groq Whisper Large V3** for English speech transcription.
-- **Bodhan Indic-Transcribe Core** through a private Hugging Face Space for multilingual transcription and translation.
-
-The application provides a Gradio web interface, a FastAPI REST API, audio file uploads, and microphone recording.
+1. **Whisper – English only (Groq):** English speech transcription using Groq Whisper Large V3.
+2. **Indic-Transcribe – Multilingual (Bodhan):** Multilingual transcription and English translation through a private Hugging Face Space.
+3. **Bodhan AI – Direct API:** Direct Bodhan API integration for regional transcription, English translation, translation into a selected regional language, and optional text-to-speech (TTS).
 
 **Live application:** https://voicetextai.onrender.com  
 **GitHub repository:** https://github.com/DJx8/VoiceTextAI
 
+---
+
 ## Features
 
-- English speech transcription using Groq Whisper Large V3.
-- Multilingual speech transcription using Bodhan Indic-Transcribe Core.
+- Audio upload and browser microphone recording.
+- English transcription with Groq Whisper Large V3.
+- Multilingual transcription with Bodhan Indic-Transcribe Core.
+- A separate direct Bodhan API processing mode.
+- Automatic language detection and manual spoken-language selection where supported.
 - Original-language transcription in its native script.
-- Separate English translation where supported.
-- Automatic language detection.
-- Manual language selection.
-- Audio file upload.
-- Browser microphone recording.
-- Automatic audio conversion to mono, 16 kHz WAV.
-- REST API integration.
-- Processing time and audio duration metadata.
-- Automated offline tests using mocked API responses.
+- English translation in the Indic and Bodhan Direct modes, where supported by the translation service.
+- Optional translation of the English result into a selected regional language.
+- Optional regional-language speech generation using Bodhan Indic-Speak.
+- Female or male voice selection, with the voice name selected automatically for the chosen language and gender.
+- Automatic audio conversion to mono, 16 kHz WAV before transcription.
+- Processing details, including audio duration and processing time.
+- FastAPI REST API for the existing Whisper and Hugging Face Indic modes.
+- Offline automated tests using mocked API responses.
+
+## Processing Modes
+
+| Mode | Service / model | Output |
+|---|---|---|
+| Whisper – English only | Groq `whisper-large-v3` | English transcription |
+| Indic-Transcribe – Multilingual | Private Hugging Face Space using `bodhan-ai/indic-transcribe-core` and its translation pipeline | Original-language transcription and English translation where supported |
+| Bodhan AI – Direct API | Bodhan `indic-transcribe`, `indic-translate`, and optionally `indic-speak` | Original-language transcription, English translation, optional regional-language text and generated speech |
+
+### 1. Whisper – English only (Groq)
+
+- Uses Groq's `whisper-large-v3` model.
+- The spoken language is fixed to English.
+- Returns the English transcription.
+- Does not generate a separate English translation because the transcription is already in English.
+
+### 2. Indic-Transcribe – Multilingual (Bodhan)
+
+- Uses the private Hugging Face Space `Deejay888/VoiceText-AI`.
+- The Space uses `bodhan-ai/indic-transcribe-core` and its combined transcription-and-translation workflow.
+- Returns the original-language transcription and an English translation where supported.
+- Supports automatic detection and the language options listed below.
+
+### 3. Bodhan AI – Direct API
+
+This mode calls Bodhan's APIs directly from the application:
+
+1. **Transcription:** Bodhan `indic-transcribe` converts the audio into text in the spoken language.
+2. **Regional language to English:** Bodhan `indic-translate` translates the transcription into English.
+3. **English to selected regional language (optional):** If speech generation is enabled, the English text is translated into the selected target language.
+4. **Text-to-speech (optional):** Bodhan `indic-speak` generates audio from that regional-language text.
+
+In the interface, you can:
+- Enable or disable regional-language speech generation.
+- Select a target language.
+- Select Female or Male voice gender.
+- Let the application choose the available voice automatically for that language and gender.
+
+For automatic spoken-language detection, the direct transcription request leaves the language parameter out of the API request. The selected target language for speech generation is a separate setting from the spoken language.
+
+**Note:** The Direct API mode uses Bodhan API credentials and may consume API credits. TTS is optional; transcription and English translation are performed as the main pipeline.
+
+---
 
 ## Supported Languages
 
-The Indic transcription interface currently provides 26 language options, including automatic detection.
+The transcription interfaces provide the following language options:
 
 | Language | Code |
 |---|---|
@@ -62,76 +108,68 @@ The Indic transcription interface currently provides 26 language options, includ
 | Bhojpuri | `bho` |
 | Bhili | `bhb` |
 
-**Translation availability:** Transcription and translation are separate capabilities. Bhojpuri and Bhili transcription are supported, but English translation is unavailable for these two languages. For other languages, translation availability depends on the translation model.
+**Translation availability:** Transcription and translation are separate capabilities. In the existing Hugging Face Indic mode, Bhojpuri and Bhili transcription are supported, but English translation is unavailable for these two languages. Translation availability in the Direct API mode depends on the Bodhan translation service and its supported language pairs.
 
-## Transcription Models
+### Regional-language speech voices
 
-| Feature | Whisper (Groq) | Indic-Transcribe Core |
-|---|---|---|
-| English transcription | Yes | Yes |
-| Regional language transcription | No | Supported language options |
-| Automatic language detection | No | Yes |
-| Manual language selection | English only | Yes |
-| Separate English translation | Not required | Where supported |
+The Direct API interface currently offers target-language speech generation for languages with configured voices:
 
-### Whisper
+Assamese, Bengali, Bodo, Dogri, Gujarati, Hindi, Kannada, Konkani, Kashmiri, Maithili, Malayalam, Manipuri, Marathi, Nepali, Odia, Punjabi, Sanskrit, Santali, Sindhi, Tamil, Telugu and Urdu.
 
-Uses `whisper-large-v3` through the Groq API. The language is fixed to English.
+The application selects the configured voice based on the chosen target language and gender. The voice name is not a separate user setting.
 
-### Indic-Transcribe
-
-Uses `bodhan-ai/indic-transcribe-core` through the private Hugging Face Space:
-
-`Deejay888/VoiceText-AI`
-
-The Space provides a combined transcription and translation endpoint. The application receives:
-
-1. Original-language transcription.
-2. English translation or an unavailable message.
-3. Detected language.
+---
 
 ## Architecture
 
 ```text
-                   User
-                     |
-                     v
-              Gradio Frontend
-            Upload / Microphone
-                     |
-                     v
-               FastAPI Backend
-                     |
-                     v
-               Audio Conversion
-               Mono, 16 kHz WAV
-                     |
-                     v
-              Transcription Router
-                     |
-               +-----+------+
-               |            |
-               v            v
-          Groq Whisper   Hugging Face
-          Large V3       Private Space
-                             |
-                      Indic Transcription
-                      + English Translation
-                             |
-               +-------------+
-               |
-               v
-             API Response
-               |
-               v
-        Original Transcription
-        English Translation
-               |
-               v
-              User
+                         User
+                           |
+                           v
+                    Gradio Frontend
+                  Upload / Microphone
+                           |
+                           v
+                     FastAPI App
+                           |
+                           v
+                     Audio Input
+                           |
+                           v
+                Audio Conversion (FFmpeg)
+                    Mono, 16 kHz WAV
+                           |
+                           v
+                    Processing Mode
+                           |
+          +----------------+----------------+
+          |                |                |
+          v                v                v
+     Groq Whisper    Hugging Face       Bodhan Direct
+     Large V3        Private Space      API Pipeline
+          |                |                |
+          v                v                v
+     English text    Indic transcription  Bodhan transcription
+                     + English translation       |
+                                            Regional text
+                                                  |
+                                                  v
+                                           English translation
+                                                  |
+                                       +----------+----------+
+                                       |                     |
+                                       v                     v
+                                Regional translation   Optional TTS
+                                       |                     |
+                                       +----------+----------+
+                                                  |
+                                                  v
+                                           Results to User
 ```
 
-The Gradio interface is mounted inside FastAPI, allowing the website and REST API to run through a single application.
+The Gradio interface is mounted inside FastAPI, so the website and REST API run through a single application.
+
+---
 
 ## Technology Stack
 
@@ -141,8 +179,9 @@ The Gradio interface is mounted inside FastAPI, allowing the website and REST AP
 | FastAPI | Backend and REST API |
 | Gradio | Web interface |
 | Groq API | Whisper inference |
-| Hugging Face Spaces | Indic transcription and translation service |
-| `gradio_client` | Communication with the Hugging Face Space |
+| Hugging Face Spaces | Existing multilingual transcription and translation service |
+| `gradio_client` | Communication with the private Hugging Face Space |
+| Bodhan API | Direct transcription, translation and text-to-speech |
 | FFmpeg | Audio conversion |
 | `imageio-ffmpeg` | FFmpeg binary management |
 | Uvicorn | ASGI server |
@@ -159,6 +198,7 @@ VoiceTextAI/
 |   |-- __init__.py
 |   |-- main.py
 |   |-- transcription.py
+|   |-- bodhan_direct.py
 |
 |-- frontend/
 |   |-- __init__.py
@@ -167,6 +207,7 @@ VoiceTextAI/
 |-- tests/
 |   |-- test_api.py
 |   |-- test_transcription.py
+|   |-- test_bodhan_direct.py
 |
 |-- .env
 |-- .gitignore
@@ -184,19 +225,19 @@ git clone https://github.com/DJx8/VoiceTextAI.git
 cd VoiceTextAI
 ```
 
-### 2. Create a virtual environment
+### 2. Create and activate a virtual environment
 
 ```bash
 python -m venv .venv
 ```
 
-Activate it using Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
-.venv\Scripts\Activate.ps1
+.venv\\Scripts\\Activate.ps1
 ```
 
-For Linux or macOS:
+Linux or macOS:
 
 ```bash
 source .venv/bin/activate
@@ -204,13 +245,13 @@ source .venv/bin/activate
 
 ### 3. Install dependencies
 
-Install application dependencies:
+For the application:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-For development and testing:
+For development and tests:
 
 ```bash
 pip install -r requirements-dev.txt
@@ -218,23 +259,30 @@ pip install -r requirements-dev.txt
 
 ### 4. Configure environment variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root. Add the credentials for the services you intend to use:
 
 ```env
 GROQ_API_KEY=your_groq_api_key
 HF_TOKEN=your_huggingface_token
+
+BODHAN_TRANSCRIBE_KEY=your_bodhan_transcription_key
+BODHAN_TRANSLATE_KEY=your_bodhan_translation_key
+BODHAN_SPEAK_KEY=your_bodhan_speech_key
 ```
 
-Required credentials:
+| Variable | Used for |
+|---|---|
+| `GROQ_API_KEY` | Whisper mode |
+| `HF_TOKEN` | Access to the private Hugging Face Space used by Indic-Transcribe mode |
+| `BODHAN_TRANSCRIBE_KEY` | Direct Bodhan transcription |
+| `BODHAN_TRANSLATE_KEY` | Direct Bodhan translation |
+| `BODHAN_SPEAK_KEY` | Direct Bodhan speech generation |
 
-- Groq API key: https://console.groq.com/keys
-- Hugging Face token: https://huggingface.co/settings/tokens
+You only need to configure credentials for the modes you plan to use. The Hugging Face token must have access to the private Space.
 
-The Hugging Face token must have access to the private Space and any gated model repository required by it.
+**Security:** Never commit `.env` or publish API keys. The `.env` file is excluded through `.gitignore`. For Render, add the required variables in the service's Environment settings rather than uploading the local `.env` file.
 
-Never commit your `.env` file or expose your API keys publicly.
-
-### 5. Run the application
+### 5. Run the application locally
 
 ```bash
 uvicorn backend.main:app --reload
@@ -248,9 +296,11 @@ The application will be available at:
 | API Documentation | http://127.0.0.1:8000/docs |
 | Health Check | http://127.0.0.1:8000/health |
 
+---
+
 ## REST API
 
-VoiceText AI provides a REST API for external applications.
+The FastAPI `/transcribe` endpoint currently exposes the **Whisper** and **Hugging Face Indic** modes. The Bodhan Direct API pipeline is currently available through the Gradio interface.
 
 ### Transcription endpoint
 
@@ -281,7 +331,7 @@ Whisper always uses English, regardless of the supplied language field.
 
 ### Python API Example
 
-Install the Requests library if needed:
+Install Requests if needed:
 
 ```bash
 pip install requests
@@ -328,36 +378,13 @@ response.raise_for_status()
 print(response.json())
 ```
 
-### Example Indic API Response
-
-```json
-{
-    "success": true,
-    "filename": "kannada.wav",
-    "selected_model": "indic",
-    "model": "indic-transcribe-core",
-    "language": "kn",
-    "requested_language": "kn",
-    "detected_language": "Kannada",
-    "duration_seconds": 12.5,
-    "processing_time_seconds": 2.1,
-    "api_request_time_seconds": 1.8,
-    "transcription": "ನಮಸ್ಕಾರ",
-    "translation": "Hello"
-}
-```
-
-The response values above are illustrative.
-
-The Indic response includes both transcription and translation. The Whisper response includes transcription without a separate translation field.
-
-### Health Endpoint
+### Health endpoint
 
 ```http
 GET /health
 ```
 
-Example:
+Example response:
 
 ```json
 {
@@ -366,33 +393,36 @@ Example:
 }
 ```
 
+---
+
 ## Automated Testing
 
-The project includes offline automated tests.
-
-Run all tests:
+Run the complete test suite:
 
 ```bash
 python -m pytest -q
 ```
 
-The tests use mocked Groq and Hugging Face responses. They do not make real inference requests or consume API credits.
+The tests use mocked Groq, Hugging Face and Bodhan API responses. They do not make real inference requests or consume API credits.
 
-Current test coverage includes:
+Coverage includes:
 
 - Audio and model validation.
 - Language validation.
 - Whisper transcription.
-- Indic transcription and translation.
-- Translation fallback.
-- Service error handling.
+- Hugging Face Indic transcription and translation.
+- Direct Bodhan transcription, translation and TTS request handling.
+- Translation and optional speech-generation error handling.
 - FastAPI health endpoint.
-- API request validation.
-- API error responses.
+- API request validation and error responses.
 
-## Deployment
+**Latest local verification:** 23 tests passed.
 
-The application is deployed using Render.
+---
+
+## Deployment on Render
+
+The application is deployed on Render.
 
 **Build command:**
 
@@ -406,30 +436,41 @@ pip install -r requirements.txt
 uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 ```
 
-Configure these environment variables in Render:
+Add the environment variables required by the modes you want to enable in the Render service's **Environment** settings:
 
-```text
-GROQ_API_KEY
-HF_TOKEN
-```
+- `GROQ_API_KEY`
+- `HF_TOKEN`
+- `BODHAN_TRANSCRIBE_KEY`
+- `BODHAN_TRANSLATE_KEY`
+- `BODHAN_SPEAK_KEY`
 
-The Hugging Face Space must be accessible using the configured token.
+The Hugging Face Space must be accessible using the configured token. Do not add secret values to the repository or README.
+
+**Live application:** https://voicetextai.onrender.com
+
+---
 
 ## Cost Considerations
 
-The project is designed to use free-tier services without requiring paid infrastructure.
+VoiceText AI integrates third-party inference APIs and hosting services. Usage charges, free-tier limits, quotas and availability depend on each provider and may change.
 
-However, API availability, usage limits, free-tier quotas and hosting restrictions depend on the respective providers. Free access is not guaranteed to be unlimited.
+- Whisper mode uses the Groq API.
+- Indic-Transcribe mode uses the configured Hugging Face Space.
+- Bodhan Direct mode can make separate transcription, translation and TTS API requests.
+- Disabling speech generation skips the final regional translation-for-speech and TTS stages.
+
+Check each provider's current pricing and usage limits before running large volumes of audio.
 
 ## Future Improvements
 
-- [ ] Download transcription as TXT.
+- [ ] Add transcription download as TXT.
 - [ ] Add transcription history.
 - [ ] Add timestamps and subtitle generation.
 - [ ] Improve long-audio processing through chunking.
-- [ ] Verify translation coverage across all supported languages.
-- [ ] Improve transcription accuracy through benchmarking.
+- [ ] Benchmark transcription and translation quality across supported languages.
+- [ ] Improve translation coverage and language-pair validation.
 - [ ] Add additional Indian language support.
+- [ ] Add the Bodhan Direct pipeline to the public REST API.
 - [ ] Improve error handling and monitoring.
 
 ---
